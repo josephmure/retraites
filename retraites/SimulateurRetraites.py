@@ -17,13 +17,17 @@ class SimulateurRetraites:
         pilotage : un entier, la stratégie de pilotage (par défaut, celle du COR)
         
         Description
-        Plusieurs stratégies de pilotage peuvent être utilisées. 
-        Les pilotages 1 à 4 assurent l'équilibre financier. 
-        * pilotage 0 : statu quo du COR (peut créer un déficit financier)
-        * pilotage 1 : imposer l'âge de départ à la retraite et le niveau de vie,
-        * pilotage 2 : imposer le taux de cotisations et le niveau pensions par rapport aux salaires,
-        * pilotage 3 : imposer le niveau de vie par rapport à l'ensemble de la population et le taux de cotisations,
-        * pilotage 4 : imposer le taux de cotisations et l'âge de départ à la retraite.
+        Plusieurs stratégies de pilotage peuvent être utilisées :
+            pilotageParPensionAgeCotisations
+            pilotageParSoldePensionAge
+            pilotageParSoldePensionCotisations
+            pilotageParSoldeAgeCotisations
+            pilotageParSoldeAgeDepenses
+            pilotageParSoldePensionDepenses
+            pilotageParPensionCotisationsDepenses
+            pilotageParAgeCotisationsDepenses
+            pilotageParAgeEtNiveauDeVie (sous-entendu et par solde financier)
+            pilotageParNiveauDeVieEtCotisations (sous-entendu et par solde financier)
 
         Exemple :
         simulateur = SimulateurRetraites('fileProjection.json')
@@ -98,7 +102,7 @@ class SimulateurRetraites:
 
     def pilotageCOR(self):
         """
-        pilotage 1 : statu quo du COR
+        pilotage 0 : statu quo du COR
         Retourne un objet de type SimulateurAnalyse.
         """
         S, RNV, REV, Depenses = self._calcule_S_RNV_REV(self.T, self.P, self.A)
@@ -106,6 +110,36 @@ class SimulateurRetraites:
                                      self.scenarios, self.annees_EV, self.annees)
         return resultat
     
+    def pilotageParPensionAgeCotisations(self, Pcible=None, Acible=None, Tcible=None):
+        """
+        pilotage 1 : imposer 1) le niveau des pensions par rapport aux salaires
+        2) l'âge de départ à la retraite
+        3) le taux de cotisations
+            
+        Paramètres
+        Pcible : le niveau de pension des retraites par rapport aux actifs
+        Acible : l'âge de départ à la retraite
+        Tcible : le taux de cotisations
+
+        Description
+        Retourne un objet de type SimulateurAnalyse.
+        * Si la valeur n'est pas donnée, utilise par défaut la trajectoire du COR.
+        * Si la valeur donnée est un flottant, utilise la trajectoire du 
+        COR pour les années passées et cette valeur pour les années futures. 
+        * Si la valeur donnée est un dictionnaire, considère que c'est 
+        une trajectoire et utilise cette trajectoire. 
+        """
+        # Génère les trajectoires en fonction des paramètres
+        Ps = self.genereTrajectoire("P", Pcible)
+        As = self.genereTrajectoire("A", Acible)
+        Ts = self.genereTrajectoire("T", Tcible)
+
+        # Simule 
+        S, RNV, REV, Depenses = self._calcule_S_RNV_REV(Ts,Ps,As)
+        resultat = SimulateurAnalyse(Ts, Ps, As, S, RNV, REV, Depenses, \
+                                     self.scenarios, self.annees_EV, self.annees)
+        return resultat
+
     def pilotageParSoldePensionAge(self, Scible=None, Pcible=None, Acible=None):
         """
         pilotage 2 : imposer 1) le bilan financer
